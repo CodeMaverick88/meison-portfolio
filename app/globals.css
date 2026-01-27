@@ -2,25 +2,39 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #000000;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Hide scrollbar */
+* { scrollbar-width: none; -ms-overflow-style: none; }
+*::-webkit-scrollbar { display: none; }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Organic "Vein" Flow Animation */
+@keyframes veinFlow {
+  0% { background-position: 0% 50%; filter: hue-rotate(0deg); }
+  50% { background-position: 100% 50%; filter: hue-rotate(15deg); }
+  100% { background-position: 0% 50%; filter: hue-rotate(0deg); }
+}
+
+.vein-glow {
+  background: linear-gradient(
+    90deg, 
+    #000 0%, 
+    #d4af37 25%, 
+    #a855f7 50%, 
+    #22c55e 75%, 
+    #000 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: veinFlow 6s ease-in-out infinite;
+  display: inline-block;
 }
