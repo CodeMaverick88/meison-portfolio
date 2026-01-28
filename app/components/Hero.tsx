@@ -1,215 +1,227 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from 'react';
-import { motion, useScroll, useTransform, useSpring, useTime, AnimatePresence } from 'framer-motion';
-import Link from 'next/link';
+import { motion, useScroll, useTransform, useSpring, AnimatePresence } from 'framer-motion';
 
-// --- Integrated Minimalist Navbar (No Background, Pure 3D) ---
-const Navbar = ({ isVisible }: { isVisible: boolean }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const navLinks = [
-    { name: "About", href: "/about" },
-    { name: "Works", href: "/works" },
-    { name: "Contact", href: "/contact" },
-  ];
+export default function PortfolioPage() {
+  const [stage, setStage] = useState('intro'); 
+  const [activeTab, setActiveTab] = useState<string | null>(null); // 'who', 'resilience', 'mission'
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  return (
-    <>
-      <motion.nav
-        initial={{ y: -50, opacity: 0 }}
-        animate={{ y: isVisible ? 0 : -50, opacity: isVisible ? 1 : 0 }}
-        className="fixed top-0 left-0 w-full z-[100] px-8 md:px-16 py-10 flex justify-between items-center pointer-events-none"
-      >
-        <Link href="/" className="pointer-events-auto group perspective-1000">
-          <motion.div whileHover={{ scale: 1.05 }} className="font-black tracking-tighter text-2xl text-black flex items-center gap-1">
-            MEISON<span className="w-1.5 h-1.5 rounded-full bg-[#d4af37] shadow-[0_0_15px_#d4af37]" />
-          </motion.div>
-        </Link>
-
-        {/* Desktop Links */}
-        <div className="hidden md:flex gap-12 items-center pointer-events-auto">
-          {navLinks.map((link) => (
-            <Link key={link.name} href={link.href} className="relative group perspective-500">
-              <motion.div whileHover={{ rotateX: 90 }} className="relative preserve-3d h-5">
-                <span className="block text-[10px] uppercase tracking-[0.4em] font-black text-black/30 group-hover:text-[#d4af37] transition-colors duration-500">
-                  {link.name}
-                </span>
-                <span className="absolute top-full left-0 block text-[10px] uppercase tracking-[0.4em] font-black text-black origin-top -rotate-x-90" style={{ transform: "translateY(5px) rotateX(-90deg)" }}>
-                  {link.name}
-                </span>
-              </motion.div>
-            </Link>
-          ))}
-        </div>
-
-        {/* Mobile Toggle */}
-        <button onClick={() => setIsOpen(!isOpen)} className="md:hidden pointer-events-auto z-[110] flex flex-col gap-1.5">
-          <div className={`w-7 h-[2px] bg-black transition-transform ${isOpen ? 'rotate-45 translate-y-2' : ''}`} />
-          <div className={`w-7 h-[2px] bg-[#d4af37] ${isOpen ? 'opacity-0' : ''}`} />
-          <div className={`w-7 h-[2px] bg-black transition-transform ${isOpen ? '-rotate-45 -translate-y-2' : ''}`} />
-        </button>
-      </motion.nav>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 1.1 }} 
-            animate={{ opacity: 1, scale: 1 }} 
-            exit={{ opacity: 0, scale: 1.1 }}
-            className="fixed inset-0 z-[105] bg-white/95 backdrop-blur-3xl flex flex-col items-center justify-center gap-10 md:hidden"
-          >
-            {navLinks.map((link) => (
-              <Link key={link.name} href={link.href} onClick={() => setIsOpen(false)} className="text-5xl font-black tracking-tighter hover:text-[#d4af37] transition-colors">
-                {link.name.toUpperCase()}
-              </Link>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  );
-};
-
-export default function Hero() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [navVisible, setNavVisible] = useState(false);
-
-  // REDUCED HEIGHT: Changed from 300vh to 180vh for faster interaction
+  // 1. SCROLL ENGINE
   const { scrollYProgress } = useScroll({
-    target: containerRef,
+    target: stage === 'explore' ? scrollRef : undefined,
     offset: ["start start", "end end"]
   });
 
   const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 40,
-    damping: 30,
-    mass: 1
+    stiffness: 30,
+    damping: 20,
+    restDelta: 0.001
   });
 
-  const time = useTime();
-  const rotate = useTime(); // Simplified for faster rotation
-  
-  // Adjusted timing for 180vh total height
-  const ringScale = useTransform(smoothProgress, [0, 0.4], [1, 40]);
-  const ringOpacity = useTransform(smoothProgress, [0.3, 0.5], [1, 0]);
-  const btnOpacity = useTransform(smoothProgress, [0, 0.15], [1, 0]);
-  const btnScale = useTransform(smoothProgress, [0, 0.15], [1, 0.5]);
+  // 2. 3D TRANSFORMATION MATH
+  const x = useTransform(smoothProgress, [0, 1], ["0%", "-200%"]);
+  const rotateY = useTransform(smoothProgress, [0, 0.45, 0.5, 0.55, 1], [0, 0, -25, 0, 0]);
+  const scale = useTransform(smoothProgress, [0, 0.45, 0.5, 0.55, 1], [1, 1, 0.85, 1, 1]);
 
-  const contentOpacity = useTransform(smoothProgress, [0.35, 0.6], [0, 1]);
-  const contentY = useTransform(smoothProgress, [0.35, 0.6], [40, 0]);
-  const contentScale = useTransform(smoothProgress, [0.35, 0.6], [0.98, 1]);
-
-  const glow1X = useTransform(smoothProgress, [0.3, 0.8], ["-10%", "5%"]);
-  const glow2Y = useTransform(smoothProgress, [0.3, 0.8], ["5%", "-5%"]);
-
+  // 3. INTRO TIMELINE
   useEffect(() => {
-    return scrollYProgress.on("change", (v) => setNavVisible(v > 0.45));
-  }, [scrollYProgress]);
+    const toWarp = setTimeout(() => setStage('warp'), 7000);
+    const toExplore = setTimeout(() => setStage('explore'), 8200);
+    return () => { clearTimeout(toWarp); clearTimeout(toExplore); };
+  }, []);
+
+  // Content for the clicks
+  const infoMap: Record<string, { title: string, body: string }> = {
+    who: { title: "WHO AM I", body: "I am Benjamin, a developer who bridges the gap between raw hardware performance and high-end visual design. I build for the future." },
+    resilience: { title: "RESILIENCE", body: "My code is built to survive. Every system I architect is stress-tested to ensure it remains standing when others fail." },
+    mission: { title: "THE MISSION", body: "To push mobile and web interfaces into a new dimension where interaction feels like a physical sensation." }
+  };
 
   return (
-    <div ref={containerRef} className="relative bg-white h-[180vh] w-full selection:bg-[#d4af37]/30">
-      <Navbar isVisible={navVisible} />
-
-      {/* --- ATMOSPHERIC BG GLOWS --- */}
-      <motion.div style={{ opacity: contentOpacity }} className="fixed inset-0 pointer-events-none z-0">
-        <motion.div 
-          style={{ x: glow1X }}
-          className="absolute top-[20%] left-[-10%] w-[70vw] h-[70vw] bg-[#d4af37]/5 rounded-full blur-[120px]" 
-        />
-        <motion.div 
-          style={{ y: glow2Y }}
-          className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-[#a855f7]/5 rounded-full blur-[100px]" 
-        />
-      </motion.div>
-
-      {/* --- SCROLL HINT --- */}
-      <motion.div
-        style={{ opacity: useTransform(smoothProgress, [0, 0.1], [1, 0]) }}
-        className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-4"
-      >
-        <span className="text-[9px] uppercase tracking-[0.8em] text-black/20 font-black">Scroll</span>
-        <div className="w-[1px] h-12 bg-gradient-to-b from-black/20 to-transparent" />
-      </motion.div>
-
-      <div className="sticky top-0 h-screen w-full flex items-center justify-center overflow-hidden">
-        
-        {/* === THE RING PORTAL === */}
-        <motion.div
-          style={{ 
-            scale: ringScale, 
-            opacity: ringOpacity, 
-            rotate: useTransform(rotate, (t) => t / 25) 
-          }}
-          className="absolute z-40 w-[240px] h-[240px] md:w-[320px] md:h-[320px] rounded-full border-[1px] border-black/5 flex items-center justify-center pointer-events-none"
-        >
-          <div className="absolute inset-0 rounded-full border-t-[3px] border-t-[#d4af37] border-l-[1px] border-l-[#a855f7] opacity-80 blur-[0.5px]" />
-          
-          <motion.button
-            style={{ opacity: btnOpacity, scale: btnScale }}
-            className="pointer-events-auto px-10 py-4 rounded-full bg-black text-white text-[10px] font-bold uppercase tracking-[0.4em] shadow-2xl hover:shadow-[#d4af37]/40 transition-shadow border border-white/10"
-          >
-            Welcome
-          </motion.button>
-        </motion.div>
-
-        {/* === MAIN CONTENT REVEAL === */}
-        <motion.div
-          style={{ opacity: contentOpacity, y: contentY, scale: contentScale }}
-          className="relative z-30 flex flex-col md:flex-row items-center gap-16 md:gap-32 px-10"
-        >
-          <motion.div 
-            whileHover={{ scale: 1.02, rotateY: 5, rotateX: -2 }}
-            className="relative w-[280px] md:w-[420px] aspect-[3/4] rounded-[3rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(0,0,0,0.1)] group cursor-pointer"
-          >
-            <img src="/Meison.jpg" alt="Meison" className="w-full h-full object-cover grayscale brightness-110 group-hover:grayscale-0 group-hover:brightness-100 transition-all duration-1000 ease-out" />
-            <div className="absolute inset-0 bg-gradient-to-tr from-[#d4af37]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-            <div className="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-[3rem]" />
-          </motion.div>
-
-          <div className="text-center md:text-left">
-            <motion.h1 
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 1 }}
-              className="text-2xl md:text-[6.0vw] font-black tracking-tighter leading-[0.82] mb-8"
-            >
-              <span className="glow-ui text-black">HELLO</span> <br />
-              <span className="glow-ui text-black">I’M MEISON</span>
-            </motion.h1>
-            
-            <motion.div 
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="flex flex-col md:flex-row items-center gap-6"
-            >
-              <div className="h-[1px] w-16 bg-black/10 hidden md:block" />
-              <p className="glow-ui text-[10px] md:text-xs  uppercase tracking-[0.6em] font-black">
-                Interactive Architect <span className="text-[#f0bb0c]">&</span> Full-Stack Developer|
-              </p>
-            </motion.div>
-          </div>
-        </motion.div>
-      </div>
-
+    <div className="relative bg-[#020202] text-white font-audiowide overflow-x-hidden">
+      
       <style jsx global>{`
-        .glow-ui {
-          position: relative;
-          display: inline-block;
-          text-shadow: 0 0 30px rgba(212, 175, 55, 0.1), 0 0 60px rgba(168, 85, 247, 0.05);
-          transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-        .glow-ui:hover {
-          text-shadow: 0 0 25px rgba(212, 175, 55, 0.5), 0 0 50px rgba(168, 85, 247, 0.3);
-          transform: translateY(-2px);
-        }
-        .perspective-1000 { perspective: 1000px; }
-        .perspective-500 { perspective: 500px; }
-        .preserve-3d { transform-style: preserve-3d; }
-        .-rotate-x-90 { transform: rotateX(-90deg); }
-        body { background: #ffffff; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+        @import url('https://fonts.googleapis.com/css2?family=Audiowide&display=swap');
+        .font-audiowide { font-family: 'Audiowide', cursive; }
         ::-webkit-scrollbar { display: none; }
+        
+        .vein-pulse {
+          background: linear-gradient(90deg, #4b0000, #ff0000, #ff6a00, #ff0000, #4b0000);
+          background-size: 200% auto;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: bloodFlow 3s linear infinite;
+        }
+
+        @keyframes bloodFlow { to { background-position: 200% center; } }
       `}</style>
+
+      {/* --- NAVIGATION --- */}
+      <nav className="fixed top-0 left-0 w-full z-[100] p-10 flex justify-between items-center">
+        <motion.button 
+          onClick={() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setStage('explore');
+          }}
+          className="text-[#ff4d00] text-3xl font-black tracking-tighter flex items-center gap-3"
+        >
+          MEISON <span className="w-3 h-3 rounded-full bg-white shadow-[0_0_15px_#ff4d00] animate-pulse" />
+        </motion.button>
+        
+        {stage === 'intro' && (
+          <motion.div 
+            initial={{ width: 0 }}
+            animate={{ width: "100%" }}
+            transition={{ duration: 7, ease: "linear" }}
+            className="absolute bottom-0 left-0 h-[1px] bg-white/20"
+          />
+        )}
+      </nav>
+
+      {/* --- LAYER 1: CINEMATIC INTRO --- */}
+      <AnimatePresence>
+        {(stage === 'intro' || stage === 'warp') && (
+          <motion.div 
+            initial={{ opacity: 1 }}
+            exit={{ scale: 8, opacity: 0, filter: "blur(20px)" }}
+            transition={{ duration: 1.2, ease: [0.7, 0, 0.3, 1] }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black overflow-hidden"
+          >
+            <video autoPlay loop muted playsInline className="w-full h-full object-cover opacity-60">
+              <source src="/17486487-uhd_3840_2160_30fps.mp4" type="video/mp4" />
+            </video>
+
+            <div className="absolute inset-0 flex items-center justify-center">
+              <motion.div 
+                initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1, duration: 1 }}
+                className="absolute top-[20%] right-[10%] text-right"
+              >
+                <h2 className="text-5xl font-black">ARCHITECT</h2>
+              </motion.div>
+
+              <motion.div 
+                initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 3, duration: 1 }}
+                className="absolute bottom-[20%] left-[10%]"
+              >
+                <h2 className="text-5xl font-black">RESILIENT</h2>
+              </motion.div>
+
+              <motion.h1 
+                initial={{ opacity: 0, scale: 2 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 5, duration: 1.5 }}
+                className="text-8xl md:text-[14vw] font-black tracking-tighter vein-pulse"
+              >
+                MEISON
+              </motion.h1>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* --- LAYER 2: 3D WORLD --- */}
+      <div 
+        ref={scrollRef} 
+        className={`relative h-[300vh] ${stage !== 'explore' ? 'hidden' : 'block'}`}
+      >
+        <div className="sticky top-0 h-screen w-full flex items-center overflow-hidden perspective-2000">
+          <motion.div 
+            style={{ x, rotateY, scale, transformStyle: "preserve-3d" }}
+            className="flex h-screen w-[300vw]"
+          >
+            
+            {/* SECTION 1: THE PORTRAIT (UNIQUE 3D INTERACTION) */}
+            <section className="relative w-screen h-screen flex flex-col md:flex-row items-center justify-center gap-10 md:gap-32 px-10">
+              
+              <div className="relative h-[80vh] aspect-[3/4] flex items-center justify-center" style={{ transformStyle: 'preserve-3d' }}>
+                {/* TINY ELEMENTS IN CORNERS */}
+                <div className="absolute -top-5 -left-5 w-10 h-10 border-t-2 border-l-2 border-[#ff4d00]" />
+                <div className="absolute -bottom-5 -right-5 w-10 h-10 border-b-2 border-r-2 border-[#ff4d00]" />
+
+                <motion.div 
+                  animate={{ 
+                    z: activeTab ? -200 : 0,
+                    rotateY: activeTab ? -10 : 0 
+                  }}
+                  className="relative w-full h-full cursor-pointer overflow-hidden rounded-[40px] shadow-[0_0_50px_rgba(0,0,0,0.8)]"
+                >
+                  <img 
+                    src="/Proper.png" 
+                    className="w-full h-full object-cover grayscale brightness-90" 
+                    alt="Meison" 
+                  />
+                  
+                  {/* INVISIBLE CLICKABLE AREAS */}
+                  <div className="absolute inset-0 grid grid-rows-3 z-20">
+                    <div onClick={() => setActiveTab('who')} className="hover:bg-white/5 transition-colors" />
+                    <div onClick={() => setActiveTab('resilience')} className="hover:bg-white/5 transition-colors" />
+                    <div onClick={() => setActiveTab('mission')} className="hover:bg-white/5 transition-colors" />
+                  </div>
+                </motion.div>
+
+                {/* FLOATING TEXT (Pops forward) */}
+                <AnimatePresence>
+                  {activeTab && (
+                    <motion.div 
+                      initial={{ opacity: 0, z: 100, x: 50 }}
+                      animate={{ opacity: 1, z: 300, x: 0 }}
+                      exit={{ opacity: 0, z: 100, x: 50 }}
+                      className="absolute left-[80%] md:left-[90%] top-1/4 w-[300px] pointer-events-none"
+                    >
+                      <h3 className="text-[#ff4d00] text-4xl font-black mb-4 underline decoration-white/20 underline-offset-8">
+                        {infoMap[activeTab].title}
+                      </h3>
+                      <p className="text-lg tracking-widest leading-relaxed text-white shadow-2xl bg-black/40 backdrop-blur-md p-6 rounded-2xl border border-white/10">
+                        {infoMap[activeTab].body}
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="max-w-md hidden md:block">
+                <p className="text-xs tracking-[0.8em] opacity-30 uppercase mb-4">Interative Core</p>
+                <h4 className="text-3xl font-black italic">CLICK IMAGE SEGMENTS TO DECRYPT DATA.</h4>
+              </div>
+            </section>
+
+            {/* SECTION 2: TECH GEAR */}
+            <section className="relative w-screen h-screen flex items-center justify-center bg-[#050505]">
+                <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none">
+                  <motion.div 
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                    className="w-[80vh] h-[80vh] border-4 border-dashed border-[#ff4d00] rounded-full"
+                  />
+                </div>
+                <div className="relative z-10 grid grid-cols-2 md:grid-cols-3 gap-16">
+                  {['Swift', 'Kotlin', 'Flutter', 'Next.js', 'Three.js', 'Framer'].map((tech) => (
+                    <motion.div 
+                      key={tech}
+                      whileHover={{ scale: 1.2, color: '#ff4d00', opacity: 1 }}
+                      className="text-4xl md:text-6xl font-black opacity-30 cursor-default uppercase"
+                    >
+                      {tech}
+                    </motion.div>
+                  ))}
+                </div>
+            </section>
+
+            {/* SECTION 3: CONTACT */}
+            <section className="w-screen h-screen flex flex-col items-center justify-center bg-black">
+               <h2 className="text-[15vw] font-black opacity-5 vein-pulse select-none">RESILIENCE</h2>
+               <motion.button 
+                whileHover={{ scale: 1.1 }}
+                className="mt-[-5vw] text-2xl font-black border-b-2 border-white pb-2"
+               >
+                 LETS BUILD THE IMPOSSIBLE
+               </motion.button>
+            </section>
+
+          </motion.div>
+        </div>
+      </div>
     </div>
   );
 }
