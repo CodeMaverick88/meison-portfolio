@@ -1,39 +1,36 @@
 "use client";
 
 import React, { useRef, useState, useEffect, Suspense, useMemo } from "react";
-import { motion, useScroll, useTransform, useInView, useSpring, useMotionValue } from "framer-motion";
+import { motion, useScroll, useTransform, useInView } from "framer-motion";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { 
-  Float, 
-  MeshDistortMaterial, 
-  Environment
-} from "@react-three/drei";
+import { Float, MeshDistortMaterial, Environment } from "@react-three/drei";
 import * as THREE from "three";
 
-// --- 1. RESTORED 3D VISUALS (EXACTLY AS YOU WROTE) ---
+// --- 3D VISUALS (Optimized) ---
 const SectionVisual = ({ type }: { type: string }) => {
   const meshRef = useRef<THREE.Mesh>(null!);
   
   useFrame((state) => {
     const t = state.clock.getElapsedTime();
-    if (type === "I") {
-      meshRef.current.rotation.z = t * 0.5;
-      meshRef.current.rotation.x = t * 0.2;
-    } else {
-      meshRef.current.rotation.x = t * 0.3;
-      meshRef.current.rotation.y = t * 0.2;
+    if (meshRef.current) {
+        if (type === "I") {
+            meshRef.current.rotation.z = t * 0.4;
+            meshRef.current.rotation.x = t * 0.2;
+        } else {
+            meshRef.current.rotation.x = t * 0.3;
+            meshRef.current.rotation.y = t * 0.2;
+        }
     }
   });
 
-  // Memoizing geometry to prevent memory leaks/stutter
   const geometry = useMemo(() => {
     switch(type) {
-        case "E": return <boxGeometry args={[1.6, 1.6, 1.6]} />;
-        case "I": return <octahedronGeometry args={[1.8, 0]} />;
-        case "S": return <coneGeometry args={[1.2, 2.5, 32]} />; 
-        case "O": return <torusKnotGeometry args={[1, 0.3, 100, 16]} />;
-        case "N": return <torusGeometry args={[1.2, 0.4, 16, 100]} />;
-        default: return <sphereGeometry args={[1.5, 32, 32]} />;
+        case "E": return <boxGeometry args={[1.5, 1.5, 1.5]} />;
+        case "I": return <octahedronGeometry args={[1.6, 0]} />;
+        case "S": return <coneGeometry args={[1.1, 2.4, 32]} />; 
+        case "O": return <torusKnotGeometry args={[0.9, 0.3, 100, 16]} />;
+        case "N": return <torusGeometry args={[1.1, 0.35, 16, 100]} />;
+        default: return <sphereGeometry args={[1.4, 32, 32]} />;
     }
   }, [type]);
 
@@ -43,56 +40,13 @@ const SectionVisual = ({ type }: { type: string }) => {
       <MeshDistortMaterial 
         color={type === "I" ? "#708090" : "#D4AF37"} 
         speed={1.5} 
-        distort={0.2} 
-        wireframe
+        distort={0.25} 
+        wireframe={false} // Solid looks better and is easier to see
+        metalness={0.8}
+        roughness={0.2}
       />
     </mesh>
   );
-};
-
-// --- 2. RESTORED BACKGROUND GLOW ---
-const MasteryBackground = () => {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-      <motion.div 
-        animate={{ 
-          scale: [1, 1.2, 1],
-          rotate: [0, 5, -5, 0],
-          opacity: [0.03, 0.06, 0.03]
-        }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-[radial-gradient(circle_at_center,_#D4AF37_0%,_transparent_70%)]"
-      />
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
-    </div>
-  );
-};
-
-// --- 3. NEW: HIGH PERFORMANCE CURSOR (FIXES MOUSE DRAG LAG) ---
-const CustomCursor = () => {
-    const mouseX = useMotionValue(-100);
-    const mouseY = useMotionValue(-100);
-    
-    // Physics for smoothness (Mass: 0.1 makes it snappy but smooth)
-    const springConfig = { damping: 20, stiffness: 400, mass: 0.1 };
-    const x = useSpring(mouseX, springConfig);
-    const y = useSpring(mouseY, springConfig);
-
-    useEffect(() => {
-        const moveMouse = (e: MouseEvent) => {
-            mouseX.set(e.clientX - 4); // Center offset
-            mouseY.set(e.clientY - 4);
-        };
-        window.addEventListener("mousemove", moveMouse);
-        return () => window.removeEventListener("mousemove", moveMouse);
-    }, [mouseX, mouseY]);
-
-    return (
-        <motion.div 
-            style={{ x, y }} 
-            className="fixed top-0 left-0 w-2 h-2 bg-[#D4AF37] rounded-full pointer-events-none z-[9999] hidden md:block" 
-        />
-    );
 };
 
 // --- CONTENT COMPONENT ---
@@ -110,30 +64,24 @@ interface ContentBlockProps {
 
 const ContentBlock = ({ letter, title, subtitle, details, projects, personal, isLast = false, hasImage = false, isDivider = false }: ContentBlockProps) => {
   const ref = useRef(null);
-  const isInView = useInView(ref, { margin: "-20% 0px -20% 0px", amount: 0.3 });
+  const isInView = useInView(ref, { margin: "-10% 0px -10% 0px", amount: 0.1 });
 
   if (isDivider) {
     return (
-      <section ref={ref} id="section-DIVIDER" className="relative py-48 w-full flex items-center justify-center overflow-hidden">
-        <motion.div 
-            animate={{ opacity: [0.02, 0.05, 0.02], scale: [1, 1.1, 1] }}
-            transition={{ duration: 8, repeat: Infinity }}
-            className="absolute w-[600px] h-[600px] bg-[#D4AF37] blur-[150px] rounded-full pointer-events-none"
-        />
-        <motion.div className="max-w-3xl text-center px-6 z-10 space-y-10">
+      <section ref={ref} id="section-DIVIDER" className="relative py-32 w-full flex items-center justify-center">
+        <div className="max-w-3xl text-center px-6 z-10 space-y-8">
           {details?.map((text, i) => (
             <motion.p 
                 key={i}
-                initial={{ opacity: 0, y: 15 }}
+                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: i * 0.5 }}
-                viewport={{ once: true }}
-                className="text-xl md:text-2xl text-white/70 font-light leading-relaxed font-sans"
+                transition={{ duration: 0.6, delay: i * 0.2 }}
+                className="text-lg md:text-2xl text-white/70 font-light leading-relaxed"
             >
                 {text}
             </motion.p>
           ))}
-        </motion.div>
+        </div>
       </section>
     );
   }
@@ -142,16 +90,16 @@ const ContentBlock = ({ letter, title, subtitle, details, projects, personal, is
     <section 
       ref={ref}
       id={`section-${letter}`}
-      className="relative min-h-screen w-full flex items-center justify-center p-6 md:p-24 overflow-hidden"
+      className="relative min-h-screen w-full flex items-center justify-center p-6 md:p-24"
     >
-      {letter === "M" && <MasteryBackground />}
-
-      <motion.div 
+      <div 
         className="max-w-7xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center relative z-10"
-        animate={{ opacity: isInView ? 1 : 0.05, y: isInView ? 0 : 30 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
       >
-        <div className="space-y-8 order-2 lg:order-1 pb-24 md:pb-0">
+        <motion.div 
+            animate={{ opacity: isInView ? 1 : 0, x: isInView ? 0 : -20 }}
+            transition={{ duration: 0.6 }}
+            className="space-y-8 order-2 lg:order-1 pb-24 lg:pb-0"
+        >
           <div className="flex flex-col">
             <span className="text-white/30 font-mono text-xs md:text-sm tracking-[0.6em] uppercase mb-2">{subtitle}</span>
             <h2 className="text-5xl md:text-8xl font-black text-[#D4AF37] tracking-tighter uppercase">
@@ -166,15 +114,13 @@ const ContentBlock = ({ letter, title, subtitle, details, projects, personal, is
           {projects && (
             <div className="grid grid-cols-1 gap-4 mt-8">
               {projects.map((p, i) => (
-                <motion.a 
+                <a 
                   key={i}
                   href={p.link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  whileHover={{ x: 10, borderColor: "#D4AF37" }}
-                  className="p-6 border border-white/5 bg-white/[0.02] backdrop-blur-md group transition-all block relative"
+                  className="p-6 border border-white/10 bg-white/[0.03] hover:border-[#D4AF37] transition-colors block group"
                 >
-                  <div className="absolute left-0 top-0 h-full w-1 bg-[#D4AF37] opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="flex justify-between items-start">
                     <div>
                         <span className="text-[9px] text-[#708090] tracking-widest uppercase mb-1 block">{p.tag}</span>
@@ -183,7 +129,7 @@ const ContentBlock = ({ letter, title, subtitle, details, projects, personal, is
                     <span className="text-white/20 text-xs">↗</span>
                   </div>
                   <p className="text-white/40 text-xs mt-2 font-light">{p.desc}</p>
-                </motion.a>
+                </a>
               ))}
             </div>
           )}
@@ -191,44 +137,36 @@ const ContentBlock = ({ letter, title, subtitle, details, projects, personal, is
           {personal && (
             <div className="flex flex-wrap gap-2 md:gap-3 mt-6">
               {personal.map((tag, i) => (
-                <motion.span 
+                <span 
                   key={i}
-                  whileHover={{ scale: 1.05, color: "#D4AF37", borderColor: "#D4AF37" }}
-                  className="px-3 py-1.5 border border-white/10 text-white/40 text-[9px] uppercase tracking-widest rounded-full transition-all cursor-default relative group"
+                  className="px-3 py-1.5 border border-white/10 text-white/40 text-[9px] uppercase tracking-widest rounded-full hover:text-[#D4AF37] hover:border-[#D4AF37] transition-colors cursor-default"
                 >
-                  <span className="hidden group-hover:inline text-[#D4AF37] mr-1">{"["}</span>
                   {tag}
-                  <span className="hidden group-hover:inline text-[#D4AF37] ml-1">{"]"}</span>
-                </motion.span>
+                </span>
               ))}
             </div>
           )}
 
           {isLast && (
              <div className="pt-10 flex flex-col gap-6">
-                <motion.a 
+                <a 
                   href="mailto:meisonramsay@gmail.com"
-                  whileHover={{ scale: 1.05, backgroundColor: "#D4AF37", color: "#000" }}
-                  className="inline-block px-10 py-4 border border-[#D4AF37] text-[#D4AF37] uppercase tracking-[0.4em] text-[10px] transition-all font-bold w-fit"
+                  className="inline-block px-10 py-4 border border-[#D4AF37] text-[#D4AF37] uppercase tracking-[0.4em] text-[10px] hover:bg-[#D4AF37] hover:text-black transition-all font-bold w-fit"
                 >
                   Hire Meison
-                </motion.a>
+                </a>
                 <div className="text-white/20 text-[9px] tracking-[0.3em] uppercase">
                     Direct Contact: +254 790 827 742
                 </div>
              </div>
           )}
-        </div>
+        </motion.div>
 
+        {/* 3D / IMAGE CONTAINER - FIXED HEIGHT & VISIBILITY */}
         <div className="h-[400px] md:h-[600px] w-full relative z-10 order-1 lg:order-2 flex items-center justify-center">
             {hasImage ? (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.8 }}
-                  className="relative w-[300px] h-[400px] md:w-[400px] md:h-[500px]"
-                >
-                    <div className="w-full h-full overflow-hidden border border-white/10 p-2 bg-white/5 backdrop-blur-sm grayscale group-hover:grayscale-0 transition-all duration-700">
+                <div className="relative w-[300px] h-[400px] md:w-[400px] md:h-[500px]">
+                    <div className="w-full h-full overflow-hidden border border-white/10 p-2 bg-white/5 grayscale hover:grayscale-0 transition-all duration-700">
                         <img 
                             src="/Meison-modified.jpg" 
                             alt="Meison" 
@@ -238,21 +176,25 @@ const ContentBlock = ({ letter, title, subtitle, details, projects, personal, is
                     </div>
                     <div className="absolute -bottom-4 -right-4 w-24 h-24 border-r border-b border-[#D4AF37]/50" />
                     <div className="absolute -top-4 -left-4 w-24 h-24 border-l border-t border-[#D4AF37]/50" />
-                </motion.div>
+                </div>
             ) : (
-                <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
-                    <Suspense fallback={null}>
-                    <ambientLight intensity={0.5} />
-                    <pointLight position={[10, 10, 10]} intensity={1.5} color="#D4AF37" />
-                    <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
-                        <SectionVisual type={letter} />
-                    </Float>
-                    <Environment preset="city" />
-                    </Suspense>
-                </Canvas>
+                <div className="w-full h-full">
+                    {/* Added dpr (device pixel ratio) to keep it performant on high res screens */}
+                    <Canvas dpr={[1, 1.5]} camera={{ position: [0, 0, 5], fov: 50 }} gl={{ alpha: true }}>
+                        <Suspense fallback={null}>
+                            <ambientLight intensity={1.5} />
+                            <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} color="#D4AF37" />
+                            <pointLight position={[-10, -10, -10]} intensity={1} color="white" />
+                            <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
+                                <SectionVisual type={letter} />
+                            </Float>
+                            <Environment preset="city" />
+                        </Suspense>
+                    </Canvas>
+                </div>
             )}
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 };
@@ -260,19 +202,17 @@ const ContentBlock = ({ letter, title, subtitle, details, projects, personal, is
 export default function FinalMeisonPortfolio() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeSection, setActiveSection] = useState("M");
-  const [time, setTime] = useState(() => 
-    new Date().toLocaleTimeString('en-US', { hour12: false, hour: "2-digit", minute: "2-digit" })
-  );
+  const [time, setTime] = useState("");
 
-  // CLOCK SYSTEM
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: "2-digit", minute: "2-digit" }));
-    }, 1000);
+    const updateTime = () => setTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: "2-digit", minute: "2-digit" }));
+    
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // SCROLL SPY (Optimized with IntersectionObserver to reduce scroll lag)
+  // LIGHTWEIGHT SCROLL TRACKER
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -283,7 +223,7 @@ export default function FinalMeisonPortfolio() {
           }
         });
       },
-      { threshold: 0.2, rootMargin: "-10% 0px -10% 0px" }
+      { threshold: 0.25 }
     );
 
     const sections = ["M", "E", "I", "S", "O", "N"];
@@ -389,22 +329,15 @@ export default function FinalMeisonPortfolio() {
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;700&family=Outfit:wght@100;400;900&display=swap');
         body { 
-            cursor: auto; 
             background: #050505; 
             font-family: 'Outfit', sans-serif; 
             scroll-behavior: smooth; 
         }
-        @media (min-width: 768px) {
-            body { cursor: none; }
-        }
         ::-webkit-scrollbar { display: none; }
       `}</style>
 
-      {/* Lag-Free Cursor */}
-      <CustomCursor />
-
       {/* NAV */}
-      <nav className="fixed top-0 w-full p-8 flex justify-between items-center z-[100] px-6 md:px-12 backdrop-blur-md border-b border-white/5 md:border-none">
+      <nav className="fixed top-0 w-full p-6 md:p-8 flex justify-between items-center z-[50] px-6 md:px-12 bg-gradient-to-b from-black/80 to-transparent">
         <div className="flex items-center gap-4">
             <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-sm tracking-[0.6em] text-[#D4AF37] font-black uppercase border-b border-[#D4AF37] pb-1">
             MEISON
@@ -420,11 +353,11 @@ export default function FinalMeisonPortfolio() {
         </div>
       </nav>
 
-      {/* DESKTOP SPINE (Left Side) */}
-      <div className="fixed left-8 top-1/2 -translate-y-1/2 hidden md:flex flex-col gap-8 z-[100]">
+      {/* DESKTOP SPINE (Left) */}
+      <div className="fixed left-8 top-1/2 -translate-y-1/2 hidden md:flex flex-col gap-8 z-[50]">
         {spineData.map((s) => !s.isDivider && (
             <a key={s.letter} href={`#section-${s.letter}`} className="group relative flex items-center">
-                <span className={`transition-all duration-500 font-black text-2xl ${activeSection === s.letter ? "text-[#D4AF37] scale-150" : "text-white/10 group-hover:text-white/40"}`}>
+                <span className={`transition-all duration-300 font-black text-2xl ${activeSection === s.letter ? "text-[#D4AF37] scale-125" : "text-white/10 group-hover:text-white/40"}`}>
                     {s.letter}
                 </span>
                 <span className="absolute left-10 text-[8px] tracking-[0.5em] text-[#D4AF37] opacity-0 group-hover:opacity-100 transition-all uppercase whitespace-nowrap">
@@ -434,20 +367,18 @@ export default function FinalMeisonPortfolio() {
         ))}
       </div>
 
-      {/* MOBILE SPINE DOCK (Bottom) - Ensures full visibility and activity on small screens */}
-      <div className="fixed bottom-0 left-0 w-full md:hidden z-[999] bg-[#050505]/90 backdrop-blur-xl border-t border-white/10 pb-6 pt-4 px-6 flex justify-between items-center shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">
+      {/* MOBILE SPINE DOCK (Bottom) */}
+      <div className="fixed bottom-0 left-0 w-full md:hidden z-[100] bg-[#050505] border-t border-white/10 pb-6 pt-4 px-6 flex justify-between items-center">
          {spineData.map((s) => !s.isDivider && (
              <a 
                 key={s.letter} 
                 href={`#section-${s.letter}`} 
-                className={`flex flex-col items-center gap-1 transition-all duration-300 ${activeSection === s.letter ? "-translate-y-2" : ""}`}
+                className={`flex flex-col items-center gap-1 transition-all duration-200 ${activeSection === s.letter ? "-translate-y-1" : ""}`}
              >
                  <span className={`text-lg font-black ${activeSection === s.letter ? "text-[#D4AF37]" : "text-white/20"}`}>
                      {s.letter}
                  </span>
-                 {activeSection === s.letter && (
-                    <motion.div layoutId="dock-dot" className="w-1 h-1 bg-[#D4AF37] rounded-full" />
-                 )}
+                 {activeSection === s.letter && <div className="w-1 h-1 bg-[#D4AF37] rounded-full" />}
              </a>
          ))}
       </div>
