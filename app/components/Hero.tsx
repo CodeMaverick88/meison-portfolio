@@ -1,227 +1,436 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from 'react';
-import { motion, useScroll, useTransform, useSpring, AnimatePresence } from 'framer-motion';
+import React, { useRef, useState, useEffect, Suspense } from "react";
+import { motion, useScroll, useTransform, useInView } from "framer-motion";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { 
+  Float, 
+  MeshDistortMaterial, 
+  Environment
+} from "@react-three/drei";
+import * as THREE from "three";
 
-export default function PortfolioPage() {
-  const [stage, setStage] = useState('intro'); 
-  const [activeTab, setActiveTab] = useState<string | null>(null); // 'who', 'resilience', 'mission'
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  // 1. SCROLL ENGINE
-  const { scrollYProgress } = useScroll({
-    target: stage === 'explore' ? scrollRef : undefined,
-    offset: ["start start", "end end"]
+// --- 3D VISUALS (Standard for other sections) ---
+const SectionVisual = ({ type }: { type: string }) => {
+  const meshRef = useRef<THREE.Mesh>(null!);
+  
+  useFrame((state) => {
+    const t = state.clock.getElapsedTime();
+    if (type === "I") {
+      meshRef.current.rotation.z = t * 0.5;
+      meshRef.current.rotation.x = t * 0.2;
+    } else {
+      meshRef.current.rotation.x = t * 0.3;
+      meshRef.current.rotation.y = t * 0.2;
+    }
   });
-
-  const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 30,
-    damping: 20,
-    restDelta: 0.001
-  });
-
-  // 2. 3D TRANSFORMATION MATH
-  const x = useTransform(smoothProgress, [0, 1], ["0%", "-200%"]);
-  const rotateY = useTransform(smoothProgress, [0, 0.45, 0.5, 0.55, 1], [0, 0, -25, 0, 0]);
-  const scale = useTransform(smoothProgress, [0, 0.45, 0.5, 0.55, 1], [1, 1, 0.85, 1, 1]);
-
-  // 3. INTRO TIMELINE
-  useEffect(() => {
-    const toWarp = setTimeout(() => setStage('warp'), 7000);
-    const toExplore = setTimeout(() => setStage('explore'), 8200);
-    return () => { clearTimeout(toWarp); clearTimeout(toExplore); };
-  }, []);
-
-  // Content for the clicks
-  const infoMap: Record<string, { title: string, body: string }> = {
-    who: { title: "WHO AM I", body: "I am Benjamin, a developer who bridges the gap between raw hardware performance and high-end visual design. I build for the future." },
-    resilience: { title: "RESILIENCE", body: "My code is built to survive. Every system I architect is stress-tested to ensure it remains standing when others fail." },
-    mission: { title: "THE MISSION", body: "To push mobile and web interfaces into a new dimension where interaction feels like a physical sensation." }
-  };
 
   return (
-    <div className="relative bg-[#020202] text-white font-audiowide overflow-x-hidden">
+    <mesh ref={meshRef}>
+      {type === "E" && <boxGeometry args={[1.6, 1.6, 1.6]} />}
+      {type === "I" && <octahedronGeometry args={[1.8, 0]} />}
+      {type === "S" && <coneGeometry args={[1.2, 2.5, 32]} />} 
+      {type === "O" && <torusKnotGeometry args={[1, 0.3, 100, 16]} />}
+      {type === "N" && <torusGeometry args={[1.2, 0.4, 16, 100]} />}
       
-      <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Audiowide&display=swap');
-        .font-audiowide { font-family: 'Audiowide', cursive; }
-        ::-webkit-scrollbar { display: none; }
-        
-        .vein-pulse {
-          background: linear-gradient(90deg, #4b0000, #ff0000, #ff6a00, #ff0000, #4b0000);
-          background-size: 200% auto;
-          -webkit-background-clip: text;
-          background-clip: text;
-          color: transparent;
-          animation: bloodFlow 3s linear infinite;
-        }
+      <MeshDistortMaterial 
+        color={type === "I" ? "#708090" : "#D4AF37"} 
+        speed={1.5} 
+        distort={0.2} 
+        wireframe
+      />
+    </mesh>
+  );
+};
 
-        @keyframes bloodFlow { to { background-position: 200% center; } }
+// --- BACKGROUND "VIDEO" EFFECT FOR MASTERY ---
+const MasteryBackground = () => {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      <motion.div 
+        animate={{ 
+          scale: [1, 1.2, 1],
+          rotate: [0, 5, -5, 0],
+          opacity: [0.03, 0.06, 0.03]
+        }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-[radial-gradient(circle_at_center,_#D4AF37_0%,_transparent_70%)]"
+      />
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
+    </div>
+  );
+};
+
+// --- CONTENT COMPONENT ---
+interface ContentBlockProps {
+  letter: string;
+  title: string;
+  subtitle: string;
+  details?: string[];
+  projects?: { name: string; desc: string; link: string; tag: string }[];
+  personal?: string[];
+  isLast?: boolean;
+  hasImage?: boolean;
+  isDivider?: boolean; 
+}
+
+const ContentBlock = ({ letter, title, subtitle, details, projects, personal, isLast = false, hasImage = false, isDivider = false }: ContentBlockProps) => {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { margin: "-20% 0px -20% 0px", amount: 0.3 });
+
+  if (isDivider) {
+    return (
+      <section ref={ref} className="relative py-48 w-full flex items-center justify-center overflow-hidden">
+        <motion.div 
+            animate={{ opacity: [0.02, 0.05, 0.02], scale: [1, 1.1, 1] }}
+            transition={{ duration: 8, repeat: Infinity }}
+            className="absolute w-[600px] h-[600px] bg-[#D4AF37] blur-[150px] rounded-full pointer-events-none"
+        />
+        <motion.div 
+          className="max-w-3xl text-center px-6 z-10 space-y-10"
+        >
+          {details?.map((text, i) => (
+            <motion.p 
+                key={i}
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1, delay: i * 0.5 }}
+                viewport={{ once: true }}
+                className="text-xl md:text-2xl text-white/70 font-light leading-relaxed font-sans"
+            >
+                {text}
+            </motion.p>
+          ))}
+        </motion.div>
+      </section>
+    );
+  }
+
+  return (
+    <section 
+      ref={ref}
+      id={`section-${letter}`}
+      className="relative min-h-screen w-full flex items-center justify-center p-6 md:p-24 overflow-hidden"
+    >
+      {letter === "M" && <MasteryBackground />}
+
+      <motion.div 
+        className="max-w-7xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center relative z-10"
+        animate={{ opacity: isInView ? 1 : 0.05, y: isInView ? 0 : 30 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+      >
+        <div className="space-y-8 order-2 lg:order-1">
+          <div className="flex flex-col">
+            <span className="text-white/30 font-mono text-xs md:text-sm tracking-[0.6em] uppercase mb-2">{subtitle}</span>
+            <h2 className="text-5xl md:text-8xl font-black text-[#D4AF37] tracking-tighter uppercase">
+              {title}<span className="text-white">.</span>
+            </h2>
+          </div>
+
+          <div className="space-y-6 text-base md:text-lg text-white/60 leading-relaxed font-light">
+            {details?.map((text, i) => <p key={i}>{text}</p>)}
+          </div>
+
+          {projects && (
+            <div className="grid grid-cols-1 gap-4 mt-8">
+              {projects.map((p, i) => (
+                <motion.a 
+                  key={i}
+                  href={p.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  whileHover={{ x: 10, borderColor: "#D4AF37" }}
+                  className="p-6 border border-white/5 bg-white/[0.02] backdrop-blur-md group transition-all block relative"
+                >
+                  <div className="absolute left-0 top-0 h-full w-1 bg-[#D4AF37] opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="flex justify-between items-start">
+                    <div>
+                        <span className="text-[9px] text-[#708090] tracking-widest uppercase mb-1 block">{p.tag}</span>
+                        <h4 className="text-white font-bold text-lg uppercase group-hover:text-[#D4AF37] transition-colors">{p.name}</h4>
+                    </div>
+                    <span className="text-white/20 text-xs">↗</span>
+                  </div>
+                  <p className="text-white/40 text-xs mt-2 font-light">{p.desc}</p>
+                </motion.a>
+              ))}
+            </div>
+          )}
+
+          {personal && (
+            <div className="flex flex-wrap gap-2 md:gap-3 mt-6">
+              {personal.map((tag, i) => (
+                <motion.span 
+                  key={i}
+                  whileHover={{ scale: 1.05, color: "#D4AF37", borderColor: "#D4AF37" }}
+                  className="px-3 py-1.5 border border-white/10 text-white/40 text-[9px] uppercase tracking-widest rounded-full transition-all cursor-default relative group"
+                >
+                  <span className="hidden group-hover:inline text-[#D4AF37] mr-1">{"["}</span>
+                  {tag}
+                  <span className="hidden group-hover:inline text-[#D4AF37] ml-1">{"]"}</span>
+                </motion.span>
+              ))}
+            </div>
+          )}
+
+          {isLast && (
+             <div className="pt-10 flex flex-col gap-6">
+                <motion.a 
+                  href="mailto:meisonramsay@gmail.com"
+                  whileHover={{ scale: 1.05, backgroundColor: "#D4AF37", color: "#000" }}
+                  className="inline-block px-10 py-4 border border-[#D4AF37] text-[#D4AF37] uppercase tracking-[0.4em] text-[10px] transition-all font-bold w-fit"
+                >
+                  Hire Meison
+                </motion.a>
+                <div className="text-white/20 text-[9px] tracking-[0.3em] uppercase">
+                    Direct Contact: +254 790 827 742
+                </div>
+             </div>
+          )}
+        </div>
+
+        <div className="h-[400px] md:h-[600px] w-full relative z-10 order-1 lg:order-2 flex items-center justify-center">
+            {hasImage ? (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.8 }}
+                  className="relative w-[300px] h-[400px] md:w-[400px] md:h-[500px]"
+                >
+                    <div className="w-full h-full overflow-hidden border border-white/10 p-2 bg-white/5 backdrop-blur-sm grayscale group-hover:grayscale-0 transition-all duration-700">
+                        <img 
+                            src="/Meison-modified.jpg" 
+                            alt="Meison" 
+                            className="w-full h-full object-cover object-top opacity-90" 
+                        />
+                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    </div>
+                    <div className="absolute -bottom-4 -right-4 w-24 h-24 border-r border-b border-[#D4AF37]/50" />
+                    <div className="absolute -top-4 -left-4 w-24 h-24 border-l border-t border-[#D4AF37]/50" />
+                </motion.div>
+            ) : (
+                <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
+                    <Suspense fallback={null}>
+                    <ambientLight intensity={0.5} />
+                    <pointLight position={[10, 10, 10]} intensity={1.5} color="#D4AF37" />
+                    <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
+                        <SectionVisual type={letter} />
+                    </Float>
+                    <Environment preset="city" />
+                    </Suspense>
+                </Canvas>
+            )}
+        </div>
+      </motion.div>
+    </section>
+  );
+};
+
+export default function FinalMeisonPortfolio() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [activeSection, setActiveSection] = useState("M");
+  
+  const [time, setTime] = useState("");
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: "2-digit", minute: "2-digit" }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
+    window.addEventListener("mousemove", handleMove);
+    return () => window.removeEventListener("mousemove", handleMove);
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+        const sections = ["M", "E", "I", "S", "O", "N"];
+        const scrollPosition = window.scrollY + window.innerHeight / 3;
+        for (const letter of sections) {
+            const element = document.getElementById(`section-${letter}`);
+            if (element) {
+                const { offsetTop, offsetHeight } = element;
+                if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+                    setActiveSection(letter);
+                }
+            }
+        }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end end"],
+  });
+
+  const heroScale = useTransform(scrollYProgress, [0, 0.1], [1, 0.95]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.1], [1, 0]);
+
+  const spineData: ContentBlockProps[] = [
+    {
+      letter: "M",
+      title: "Mastery",
+      subtitle: "The Architect",
+      hasImage: true, 
+      details: [
+        "I’m Meison. I build digital systems that feel alive.",
+        "I focus on orchestrating logic and design into tools people actually want to use.",
+        "Production systems used by real clients. Driven by discipline."
+      ],
+      personal: ["21 Years Old", "Full-Stack", "Fast Learner", "Christian", "Visionary"]
+    },
+    {
+      letter: "E",
+      title: "Engine",
+      subtitle: "The Foundation",
+      details: [
+        "I build things that work—clean systems, smooth interfaces, and reliable infrastructure.",
+        "I learn fast, build often, and improve every project I touch."
+      ],
+      personal: ["TypeScript", "React Native", "Java", "Neon DB", "Supabase", "Expo", "C"]
+    },
+    {
+      letter: "I",
+      title: "Intelligence",
+      subtitle: "Future Tech",
+      details: [
+        "Exploring AI—teaching software how to think, decide, and assist, not just respond.",
+        "It’s not about hype; it’s about solving real-world complexity with utility."
+      ],
+      personal: ["LLM Integration", "AI Agents", "Prompting", "Python"]
+    },
+    {
+      letter: "DIVIDER",
+      title: "",
+      subtitle: "",
+      isDivider: true,
+      details: [
+        "I don’t rush projects. I think, design, and refine.",
+        "Clarity and performance are non-negotiable.",
+        "Good software should be quiet, confident, and reliable."
+      ]
+    },
+    {
+      letter: "S",
+      title: "Systems",
+      subtitle: "Deployed Work",
+      projects: [
+        { name: "Crystal Five Database", desc: "Enterprise SaaS invoicing and logistics.", link: "https://crystal5-new-website-o27v.vercel.app/login", tag: "Full-Stack SaaS" },
+        { name: "Overcomers Chapel", desc: "Community portal and booking system.", link: "https://overcomers.vercel.app/", tag: "Web Platform" },
+        { name: "Intime Home", desc: "Real estate and agency digital solution.", link: "https://intimehomes-tau.vercel.app/", tag: "Real Estate" },
+        { name: "Bidding App", desc: "Live auction and bidding interface.", link: "https://biddingapp-v2.vercel.app/", tag: "Web App" },
+        { name: "Salon Platform", desc: "Session booking and stylist management.", link: "https://salon-platform-web.vercel.app/", tag: "Booking System" },
+        { name: "Playground", desc: "Experimental concepts and R&D.", link: "https://fun-projects-snowy.vercel.app/", tag: "R&D" }
+      ]
+    },
+    {
+      letter: "O",
+      title: "Originality",
+      subtitle: "Design Soul",
+      details: [
+        "Design matters to me as much as logic. I care about details because details are what people remember.",
+        "High-impact branding and creative direction for projects that need an edge."
+      ],
+      personal: ["UI/UX", "Branding", "Video Editing", "Creative Direction"]
+    },
+    {
+      letter: "N",
+      title: "Notes",
+      subtitle: "Human",
+      isLast: true,
+      details: [
+        "My life is rhythm and service. I play guitar, sing, and serve my church.",
+        "I believe in helping the next generation find their footing.",
+        "Soli Deo Gloria. Glory to God alone."
+      ],
+      personal: ["Guitarist", "Vocalist", "Damacrest Mentor", "Ministry"]
+    }
+  ];
+
+  return (
+    <div ref={containerRef} className="relative bg-[#050505] text-white overflow-x-hidden selection:bg-[#D4AF37]/40">
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;700&family=Outfit:wght@100;400;900&display=swap');
+        body { cursor: none; background: #050505; font-family: 'Outfit', sans-serif; scroll-behavior: smooth; }
+        ::-webkit-scrollbar { display: none; }
       `}</style>
 
-      {/* --- NAVIGATION --- */}
-      <nav className="fixed top-0 left-0 w-full z-[100] p-10 flex justify-between items-center">
-        <motion.button 
-          onClick={() => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            setStage('explore');
-          }}
-          className="text-[#ff4d00] text-3xl font-black tracking-tighter flex items-center gap-3"
-        >
-          MEISON <span className="w-3 h-3 rounded-full bg-white shadow-[0_0_15px_#ff4d00] animate-pulse" />
-        </motion.button>
-        
-        {stage === 'intro' && (
-          <motion.div 
-            initial={{ width: 0 }}
-            animate={{ width: "100%" }}
-            transition={{ duration: 7, ease: "linear" }}
-            className="absolute bottom-0 left-0 h-[1px] bg-white/20"
-          />
-        )}
+      <motion.div animate={{ x: mousePos.x - 4, y: mousePos.y - 4 }} className="fixed top-0 left-0 w-2 h-2 bg-[#D4AF37] rounded-full pointer-events-none z-[9999]" />
+
+      <nav className="fixed top-0 w-full p-8 flex justify-between items-center z-[100] px-6 md:px-12 backdrop-blur-md">
+        <div className="flex items-center gap-4">
+            <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-sm tracking-[0.6em] text-[#D4AF37] font-black uppercase border-b border-[#D4AF37] pb-1">
+            MEISON
+            </button>
+            <div className="hidden md:flex items-center gap-2 px-3 py-1 border border-white/10 rounded-full bg-white/5">
+                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                <span className="text-[9px] uppercase tracking-widest text-white/50">Open for Hire</span>
+            </div>
+        </div>
+        <div className="flex gap-10 text-[9px] tracking-[0.4em] uppercase text-white/40 font-bold">
+          <span className="hidden md:block">{time} EAT</span>
+          <a href="#section-S" className="hover:text-white transition-colors">Portfolio</a>
+        </div>
       </nav>
 
-      {/* --- LAYER 1: CINEMATIC INTRO --- */}
-      <AnimatePresence>
-        {(stage === 'intro' || stage === 'warp') && (
-          <motion.div 
-            initial={{ opacity: 1 }}
-            exit={{ scale: 8, opacity: 0, filter: "blur(20px)" }}
-            transition={{ duration: 1.2, ease: [0.7, 0, 0.3, 1] }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black overflow-hidden"
-          >
-            <video autoPlay loop muted playsInline className="w-full h-full object-cover opacity-60">
-              <source src="/17486487-uhd_3840_2160_30fps.mp4" type="video/mp4" />
-            </video>
-
-            <div className="absolute inset-0 flex items-center justify-center">
-              <motion.div 
-                initial={{ opacity: 0, y: -50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1, duration: 1 }}
-                className="absolute top-[20%] right-[10%] text-right"
-              >
-                <h2 className="text-5xl font-black">ARCHITECT</h2>
-              </motion.div>
-
-              <motion.div 
-                initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 3, duration: 1 }}
-                className="absolute bottom-[20%] left-[10%]"
-              >
-                <h2 className="text-5xl font-black">RESILIENT</h2>
-              </motion.div>
-
-              <motion.h1 
-                initial={{ opacity: 0, scale: 2 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 5, duration: 1.5 }}
-                className="text-8xl md:text-[14vw] font-black tracking-tighter vein-pulse"
-              >
-                MEISON
-              </motion.h1>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* --- LAYER 2: 3D WORLD --- */}
-      <div 
-        ref={scrollRef} 
-        className={`relative h-[300vh] ${stage !== 'explore' ? 'hidden' : 'block'}`}
-      >
-        <div className="sticky top-0 h-screen w-full flex items-center overflow-hidden perspective-2000">
-          <motion.div 
-            style={{ x, rotateY, scale, transformStyle: "preserve-3d" }}
-            className="flex h-screen w-[300vw]"
-          >
-            
-            {/* SECTION 1: THE PORTRAIT (UNIQUE 3D INTERACTION) */}
-            <section className="relative w-screen h-screen flex flex-col md:flex-row items-center justify-center gap-10 md:gap-32 px-10">
-              
-              <div className="relative h-[80vh] aspect-[3/4] flex items-center justify-center" style={{ transformStyle: 'preserve-3d' }}>
-                {/* TINY ELEMENTS IN CORNERS */}
-                <div className="absolute -top-5 -left-5 w-10 h-10 border-t-2 border-l-2 border-[#ff4d00]" />
-                <div className="absolute -bottom-5 -right-5 w-10 h-10 border-b-2 border-r-2 border-[#ff4d00]" />
-
-                <motion.div 
-                  animate={{ 
-                    z: activeTab ? -200 : 0,
-                    rotateY: activeTab ? -10 : 0 
-                  }}
-                  className="relative w-full h-full cursor-pointer overflow-hidden rounded-[40px] shadow-[0_0_50px_rgba(0,0,0,0.8)]"
-                >
-                  <img 
-                    src="/Proper.png" 
-                    className="w-full h-full object-cover grayscale brightness-90" 
-                    alt="Meison" 
-                  />
-                  
-                  {/* INVISIBLE CLICKABLE AREAS */}
-                  <div className="absolute inset-0 grid grid-rows-3 z-20">
-                    <div onClick={() => setActiveTab('who')} className="hover:bg-white/5 transition-colors" />
-                    <div onClick={() => setActiveTab('resilience')} className="hover:bg-white/5 transition-colors" />
-                    <div onClick={() => setActiveTab('mission')} className="hover:bg-white/5 transition-colors" />
-                  </div>
-                </motion.div>
-
-                {/* FLOATING TEXT (Pops forward) */}
-                <AnimatePresence>
-                  {activeTab && (
-                    <motion.div 
-                      initial={{ opacity: 0, z: 100, x: 50 }}
-                      animate={{ opacity: 1, z: 300, x: 0 }}
-                      exit={{ opacity: 0, z: 100, x: 50 }}
-                      className="absolute left-[80%] md:left-[90%] top-1/4 w-[300px] pointer-events-none"
-                    >
-                      <h3 className="text-[#ff4d00] text-4xl font-black mb-4 underline decoration-white/20 underline-offset-8">
-                        {infoMap[activeTab].title}
-                      </h3>
-                      <p className="text-lg tracking-widest leading-relaxed text-white shadow-2xl bg-black/40 backdrop-blur-md p-6 rounded-2xl border border-white/10">
-                        {infoMap[activeTab].body}
-                      </p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              <div className="max-w-md hidden md:block">
-                <p className="text-xs tracking-[0.8em] opacity-30 uppercase mb-4">Interative Core</p>
-                <h4 className="text-3xl font-black italic">CLICK IMAGE SEGMENTS TO DECRYPT DATA.</h4>
-              </div>
-            </section>
-
-            {/* SECTION 2: TECH GEAR */}
-            <section className="relative w-screen h-screen flex items-center justify-center bg-[#050505]">
-                <div className="absolute inset-0 opacity-10 flex items-center justify-center pointer-events-none">
-                  <motion.div 
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                    className="w-[80vh] h-[80vh] border-4 border-dashed border-[#ff4d00] rounded-full"
-                  />
-                </div>
-                <div className="relative z-10 grid grid-cols-2 md:grid-cols-3 gap-16">
-                  {['Swift', 'Kotlin', 'Flutter', 'Next.js', 'Three.js', 'Framer'].map((tech) => (
-                    <motion.div 
-                      key={tech}
-                      whileHover={{ scale: 1.2, color: '#ff4d00', opacity: 1 }}
-                      className="text-4xl md:text-6xl font-black opacity-30 cursor-default uppercase"
-                    >
-                      {tech}
-                    </motion.div>
-                  ))}
-                </div>
-            </section>
-
-            {/* SECTION 3: CONTACT */}
-            <section className="w-screen h-screen flex flex-col items-center justify-center bg-black">
-               <h2 className="text-[15vw] font-black opacity-5 vein-pulse select-none">RESILIENCE</h2>
-               <motion.button 
-                whileHover={{ scale: 1.1 }}
-                className="mt-[-5vw] text-2xl font-black border-b-2 border-white pb-2"
-               >
-                 LETS BUILD THE IMPOSSIBLE
-               </motion.button>
-            </section>
-
-          </motion.div>
-        </div>
+      <div className="fixed left-8 top-1/2 -translate-y-1/2 hidden md:flex flex-col gap-8 z-[100]">
+        {spineData.map((s) => !s.isDivider && (
+            <a key={s.letter} href={`#section-${s.letter}`} className="group relative flex items-center">
+                <span className={`transition-all duration-500 font-black text-2xl ${activeSection === s.letter ? "text-[#D4AF37] scale-150" : "text-white/10 group-hover:text-white/40"}`}>
+                    {s.letter}
+                </span>
+                <span className="absolute left-10 text-[8px] tracking-[0.5em] text-[#D4AF37] opacity-0 group-hover:opacity-100 transition-all uppercase whitespace-nowrap">
+                {s.title}
+                </span>
+            </a>
+        ))}
       </div>
+
+      <motion.section 
+        style={{ scale: heroScale, opacity: heroOpacity }}
+        className="h-screen flex flex-col items-center justify-center text-center px-4"
+      >
+        <span className="text-[#708090] tracking-[0.8em] text-[10px] uppercase mb-6 font-bold">Software Engineer • Designer</span>
+        <h1 className="text-5xl md:text-9xl font-black leading-none tracking-tighter">
+          MEISON <br/> 
+          <span className="text-transparent" style={{ WebkitTextStroke: "1px white" }}>MUGWE</span> <br/>
+          <span className="text-[#D4AF37]">NJONJO.</span>
+        </h1>
+        <p className="mt-8 md:mt-12 max-w-lg text-white/40 tracking-[0.4em] text-[10px] uppercase font-bold">
+          Available for Junior Roles & Contracts
+        </p>
+        <div className="absolute bottom-12 flex flex-col items-center gap-2 opacity-50">
+            <div className="w-[1px] h-12 bg-gradient-to-b from-[#D4AF37] to-transparent" />
+            <span className="text-[8px] uppercase tracking-widest text-[#D4AF37]">Scroll</span>
+        </div>
+      </motion.section>
+
+      <main className="space-y-0">
+        {spineData.map((data, index) => (
+          <ContentBlock key={index} {...data} />
+        ))}
+      </main>
+
+      <footer className="h-[80vh] flex flex-col items-center justify-center bg-black border-t border-white/5 px-6">
+        <div className="text-center space-y-12">
+            <h2 className="text-4xl md:text-6xl font-black tracking-tighter uppercase text-white/10 mb-12">Let Us Build</h2>
+            <div className="flex flex-wrap justify-center gap-10">
+                 <a href="https://www.linkedin.com/in/meison-mugwe-09509b307" className="text-[#708090] hover:text-[#D4AF37] text-xs tracking-widest transition-colors uppercase">LinkedIn</a>
+                 <a href="https://github.com/codemaveric88" className="text-[#708090] hover:text-[#D4AF37] text-xs tracking-widest transition-colors uppercase">GitHub</a>
+                 <a href="https://wa.me/254701641896" className="text-[#708090] hover:text-[#D4AF37] text-xs tracking-widest transition-colors uppercase">WhatsApp</a>
+            </div>
+            <div className="pt-20">
+                <p className="text-[#D4AF37] text-[10px] tracking-[1em] font-bold uppercase mb-4">Soli Deo Gloria</p>
+                <p className="text-white/10 text-[8px] tracking-[0.5em] uppercase">
+                © 2026 Meison Mugwe Njonjo. Built with intent.
+                </p>
+            </div>
+        </div>
+      </footer>
     </div>
   );
 }
