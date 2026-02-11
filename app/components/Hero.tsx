@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useRef, useState, useEffect, Suspense, useMemo } from "react";
-import { motion, useScroll, useTransform, useInView, useSpring, AnimatePresence } from "framer-motion";
+import React, { useRef, useState, useEffect, Suspense } from "react";
+import { motion, useScroll, useTransform, useInView, useSpring } from "framer-motion";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { 
   Float, 
@@ -11,7 +11,7 @@ import {
 } from "@react-three/drei";
 import * as THREE from "three";
 
-// --- 3D VISUALS (Optimized for zero-lag while keeping your specific geometries) ---
+// --- 3D VISUALS (Optimized for high-resolution clarity) ---
 const SectionVisual = ({ type }: { type: string }) => {
   const meshRef = useRef<THREE.Mesh>(null!);
   
@@ -28,7 +28,7 @@ const SectionVisual = ({ type }: { type: string }) => {
 
   return (
     <mesh ref={meshRef}>
-      {/* Restoring your exact requested 3D elements */}
+      {/* Exact geometries maintained */}
       {type === "E" && <boxGeometry args={[1.6, 1.6, 1.6]} />}
       {type === "I" && <octahedronGeometry args={[1.8, 0]} />}
       {type === "S" && <coneGeometry args={[1.2, 2.5, 32]} />} 
@@ -45,13 +45,11 @@ const SectionVisual = ({ type }: { type: string }) => {
   );
 };
 
-// --- BACKGROUND EFFECT FOR MASTERY ---
 const MasteryBackground = () => (
   <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
     <motion.div 
       animate={{ 
         scale: [1, 1.1, 1],
-        rotate: [0, 2, -2, 0],
         opacity: [0.03, 0.05, 0.03]
       }}
       transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
@@ -76,7 +74,6 @@ interface ContentBlockProps {
 
 const ContentBlock = ({ letter, title, subtitle, details, projects, personal, isLast = false, hasImage = false, isDivider = false }: ContentBlockProps) => {
   const ref = useRef(null);
-  // Improved detection for mobile
   const isInView = useInView(ref, { margin: "-15% 0px -15% 0px", amount: 0.2 });
 
   if (isDivider) {
@@ -175,7 +172,7 @@ const ContentBlock = ({ letter, title, subtitle, details, projects, personal, is
                   Hire Meison
                 </motion.a>
                 <div className="text-white/20 text-[9px] tracking-[0.3em] uppercase">
-                    Direct Contact: +254 790 827 742
+                    Call: +254 790 827 742 • WhatsApp: +254 701 641 896
                 </div>
              </div>
           )}
@@ -202,12 +199,11 @@ const ContentBlock = ({ letter, title, subtitle, details, projects, personal, is
                 </motion.div>
             ) : (
                 <div className="w-full h-full">
-                  {/* PERFORMANCE FIX: Only render the canvas if the section is in view */}
                   {isInView && (
                     <Canvas 
-                      dpr={1} 
+                      dpr={[1, 2]} // Fixes pixilation on high-res mobile screens
                       camera={{ position: [0, 0, 5], fov: 45 }}
-                      gl={{ antialias: false, powerPreference: "high-performance" }}
+                      gl={{ antialias: true, powerPreference: "high-performance" }}
                     >
                         <Suspense fallback={null}>
                             <ambientLight intensity={0.5} />
@@ -230,9 +226,8 @@ const ContentBlock = ({ letter, title, subtitle, details, projects, personal, is
 
 export default function FinalMeisonPortfolio() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [activeSection, setActiveSection] = useState("M");
+  const [activeSection, setActiveSection] = useState("M"); // MEISON button active on load
   
-  // Custom cursor using useSpring to avoid React Re-renders (Zero Lag)
   const cursorX = useSpring(0, { stiffness: 500, damping: 50 });
   const cursorY = useSpring(0, { stiffness: 500, damping: 50 });
 
@@ -282,7 +277,6 @@ export default function FinalMeisonPortfolio() {
   const heroScale = useTransform(scrollYProgress, [0, 0.1], [1, 0.9]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.1], [1, 0]);
 
-  // FULL PROJECT DATA RESTORED
   const spineData: ContentBlockProps[] = [
     {
       letter: "M",
@@ -366,7 +360,7 @@ export default function FinalMeisonPortfolio() {
     <div ref={containerRef} className="relative bg-[#050505] text-white overflow-x-hidden selection:bg-[#D4AF37]/40">
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100;400;900&display=swap');
-        body { background: #050505; font-family: 'Outfit', sans-serif; }
+        body { background: #050505; font-family: 'Outfit', sans-serif; scroll-behavior: smooth; }
         ::-webkit-scrollbar { display: none; }
         * { cursor: none !important; }
         @media (max-width: 768px) { * { cursor: auto !important; } }
@@ -380,6 +374,7 @@ export default function FinalMeisonPortfolio() {
 
       <nav className="fixed top-0 w-full p-6 md:p-8 flex justify-between items-center z-[100] bg-black/40 backdrop-blur-md border-b border-white/5">
         <div className="flex items-center gap-4">
+            {/* Active state tied to MEISON on load */}
             <button 
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} 
                 className={`text-sm tracking-[0.6em] font-black uppercase transition-colors ${activeSection === "M" ? "text-[#D4AF37]" : "text-white"}`}
@@ -411,7 +406,6 @@ export default function FinalMeisonPortfolio() {
         ))}
       </div>
 
-      {/* REFINED HERO M ANIMATION */}
       <motion.section 
         style={{ scale: heroScale, opacity: heroOpacity }}
         className="h-screen flex flex-col items-center justify-center text-center px-4"
@@ -425,40 +419,31 @@ export default function FinalMeisonPortfolio() {
             Software Engineer • Designer
         </motion.span>
         
-        <h1 className="text-5xl md:text-9xl font-black leading-none tracking-tighter flex flex-col items-center">
+        <h1 className="text-6xl md:text-9xl font-black leading-none tracking-tighter flex flex-col items-center">
           <motion.div 
-            initial={{ y: 40, opacity: 0 }} 
+            initial={{ y: 30, opacity: 0 }} 
             animate={{ y: 0, opacity: 1 }} 
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
           >
             MEISON
           </motion.div>
           <motion.div 
-            initial={{ y: 40, opacity: 0 }} 
+            initial={{ y: 30, opacity: 0 }} 
             animate={{ y: 0, opacity: 1 }} 
-            transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
             className="text-transparent" style={{ WebkitTextStroke: "1px white" }}
           >
             MUGWE
           </motion.div>
           <motion.div 
-            initial={{ y: 40, opacity: 0 }} 
+            initial={{ y: 30, opacity: 0 }} 
             animate={{ y: 0, opacity: 1 }} 
-            transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
             className="text-[#D4AF37]"
           >
             NJONJO.
           </motion.div>
         </h1>
-        
-        <motion.p 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 0.4 }} 
-            transition={{ delay: 1 }}
-            className="mt-12 max-w-lg text-white/40 tracking-[0.4em] text-[8px] md:text-[10px] uppercase font-bold"
-        >
-          Available for Junior Roles & Contracts
-        </motion.p>
         
         <div className="absolute bottom-12 flex flex-col items-center gap-2">
             <motion.div 
@@ -476,15 +461,16 @@ export default function FinalMeisonPortfolio() {
         ))}
       </main>
 
-      <footer className="h-[60vh] md:h-[80vh] flex flex-col items-center justify-center bg-black border-t border-white/5 px-6">
-        <div className="text-center space-y-10 md:space-y-12">
-            <h2 className="text-4xl md:text-6xl font-black tracking-tighter uppercase text-white/10 mb-8 md:mb-12">Let's Build</h2>
+      <footer className="min-h-[60vh] flex flex-col items-center justify-center bg-black border-t border-white/5 px-6 py-20">
+        <div className="text-center space-y-12">
+            <h2 className="text-4xl md:text-6xl font-black tracking-tighter uppercase text-white/10">Let's Build</h2>
             <div className="flex flex-wrap justify-center gap-6 md:gap-10">
                  <a href="https://www.linkedin.com/in/meison-mugwe-09509b307" target="_blank" className="text-[#708090] hover:text-[#D4AF37] text-[10px] tracking-widest transition-colors uppercase">LinkedIn</a>
                  <a href="https://github.com/codemaveric88" target="_blank" className="text-[#708090] hover:text-[#D4AF37] text-[10px] tracking-widest transition-colors uppercase">GitHub</a>
-                 <a href="https://wa.me/254790827742" target="_blank" className="text-[#708090] hover:text-[#D4AF37] text-[10px] tracking-widest transition-colors uppercase">WhatsApp</a>
+                 <a href="https://wa.me/254701641896" target="_blank" className="text-[#708090] hover:text-[#D4AF37] text-[10px] tracking-widest transition-colors uppercase">WhatsApp</a>
+                 <a href="https://instagram.com/its__ramsay" target="_blank" className="text-[#708090] hover:text-[#D4AF37] text-[10px] tracking-widest transition-colors uppercase">Instagram</a>
             </div>
-            <div className="pt-16 md:pt-20">
+            <div className="pt-12">
                 <p className="text-[#D4AF37] text-[10px] tracking-[1.2em] font-bold uppercase mb-4">Soli Deo Gloria</p>
                 <p className="text-white/10 text-[8px] tracking-[0.5em] uppercase">
                 © 2026 Meison Mugwe Njonjo. Built with intent.
